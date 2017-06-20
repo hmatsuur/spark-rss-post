@@ -1,0 +1,103 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# 通信が不安定の際にはspark_send_messageでTraceback吐く
+
+from myspark import spark_get_room_id, spark_send_message
+import requests
+import time
+import feedparser
+from datetime import datetime
+import sys
+
+
+SPARK_TOKN = 'キー'
+SPARK_ROOM = 'MY FIRST ROOM3'
+
+args = sys.argv
+
+if len(args) == 2:
+    print(args[0] + " \"ルーム名\"" + " \"キー\"")
+    sys.exit()
+
+SPARK_ROOM = args[1]
+SPARK_TOKN = args[2]
+
+# this is the variable of the room id we need to figure out:
+room_id = None
+# you can replace room ID from output of script here
+# this will speed up things a bit as the room search
+# can be omitted.
+# room_id = 'your-room-id-output-from-the-script'
+
+
+# ルームチェック
+if not room_id:
+    room_id = spark_get_room_id(SPARK_TOKN, SPARK_ROOM)
+    print('Your room ID "{id}".'.format(id=room_id))
+
+if room_id is None:
+    sys.exit()
+    
+RSS_URL = "http://localhost/test.xml"
+RSS_URL = "https://news.yahoo.co.jp/pickup/rss.xml"
+
+# print yahoo_news_dic.feed.title
+
+messages_old = ""
+messages = ""
+if room_id:
+    yahoo_news_dic = feedparser.parse(RSS_URL)
+    for entry in yahoo_news_dic.entries:
+        title = entry.title
+        link  = entry.link
+        messages = messages + title + '\n' + link + '\n'
+    date = '\n' + datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n"
+    spark_send_message(SPARK_TOKN, room_id, date)
+    spark_send_message(SPARK_TOKN, room_id, messages)
+    print(date)
+    print(messages)
+    messages_old = messages
+
+num = 1
+while True:
+    if messages == messages_old:
+        print("同じ" + str(num) + ':'),
+        for entry in yahoo_news_dic.entries:
+            title = entry.title
+            link  = entry.link
+            break
+        print("title:"),
+        print(title)
+        title = ""
+        for entry in yahoo_news_dic.entries:
+            title = entry.title
+            link  = entry.link
+            messages = messages + title + '\n' + link + '\n'
+    else:
+        print("違う" + str(num) + ':'),
+        for entry in yahoo_news_dic.entries:
+            title = entry.title
+            link  = entry.link
+            break
+        print("title:"),
+        print(title)
+        title = ""
+        if room_id:
+            date = '\n' + datetime.now().strftime("%Y/%m/%d %H:%M:%S") + "\n"
+            spark_send_message(SPARK_TOKN, room_id, date)
+            spark_send_message(SPARK_TOKN, room_id, messages)
+            print(date)
+            print(messages)
+            print(date + " old / len " + str(len(messages)) + ' ' + str(len(messages_old)) )
+            print(messages_old)
+        messages_old = messages
+    time.sleep(60)
+    num = num + 1
+
+    messages = ""
+    yahoo_news_dic = feedparser.parse(RSS_URL)
+    for entry in yahoo_news_dic.entries:
+        title = entry.title
+        link  = entry.link
+        messages = messages + title + '\n' + link + '\n'
